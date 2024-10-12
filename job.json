@@ -1,0 +1,7 @@
+{
+    "JobCommand": "/usr/bin/python3 sample_job.py 4",
+    "GPURequired": 4,
+    "GPUMemRequiredTotal": 4096,
+    "MinPerGPUMemRequired": 1024,
+    "OnlyUseFreeGPU": false
+}
