@@ -26,17 +26,26 @@ def run_job(config: Dict, shm_array: np.ndarray, interval: int) -> int:
     gpu_required = config['GPURequired']
     job_cmd = config['JobCommand']
     only_use_free_gpu = config['OnlyUseFreeGPU']
+    avail_gpus = config.get("AvailGPUs", np.arange(len(shm_array)))
+    unavil_gpus = []
+    for i in range(len(shm_array)):
+        if i not in avail_gpus:
+            unavil_gpus.append(i)
+    unavil_gpus = np.array(unavil_gpus)
     # Wait for resources
     while True:
         try:
             time.sleep(interval)
-            free_devices = np.where(shm_array[:, 0] == 0)[0]
+            array_copy = shm_array.copy()
+            if len(unavil_gpus) != 0:
+                array_copy[unavil_gpus, :] = 1
+            free_devices = np.where(array_copy[:, 0] == 0)[0]
             logging.critical(f"Free GPUs: {free_devices}")
             if only_use_free_gpu:
                 if len(free_devices) >= gpu_required:
                     break
             else:
-                free_mem = [(i, shm_array[i, 2] - shm_array[i, 1]) for i in range(len(shm_array))]
+                free_mem = [(i, array_copy[i, 2] - array_copy[i, 1]) for i in range(len(array_copy))]
                 free_mem.sort(key=lambda x: x[1], reverse=True)
                 if sum([i[1] for i in free_mem[:gpu_required]]) >= config['GPUMemRequiredTotal']\
                    and min([i[1] for i in free_mem[:gpu_required]]) >= config['MinPerGPUMemRequired']:
@@ -61,7 +70,7 @@ def main():
     parser.add_argument("--monitor-interval", type=int, default=3)
     args = parser.parse_args()
     interval = args.monitor_interval
-    shm_name = "monitor_shm_" + uuid.uuid4().hex
+    shm_name = "monitor_shm_" + uuid.uuid4().hex[:16]
     with open(args.config, 'r') as f:
         config = json.load(f)
 
